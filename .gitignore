@@ -1,0 +1,14 @@
+# 编译产物
+*.o
+c_compiler
+output.c
+output
+
+# Node.js 依赖
+/node_modules
+
+# 构建目录
+/build/
+
+# macOS 系统文件
+.DS_Store 

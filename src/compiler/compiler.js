@@ -1,21 +1,28 @@
-/*
- * 编译器主模块 - 集成词法分析、语法分析、语义分析、代码优化和目标代码生成
+/**
+ * 编译器主模块 - compiler.js
+ * @description 集成词法分析、语法分析、语义分析、代码优化和目标代码生成
+ *              提供完整的编译流程管理和统一的编译接口
+ * @module compiler/compiler
+ * @author poboll
+ * @date 2025
+ * @version 1.0
  * 
- * 功能：
+ * 主要功能：
  * 1. 集成词法分析器、语法分析器、语义分析器、代码优化器和目标代码生成器
- * 2. 提供统一的编译接口
- * 3. 错误处理和报告
- * 4. 编译流程管理
- * 
- * 作者：编译系统课程设计
- * 日期：2024
+ * 2. 提供统一的编译接口和流程管理
+ * 3. 完整的错误处理和报告机制
+ * 4. 编译结果统计和性能分析
+ * 5. 支持多种编译模式和配置选项
+ * 6. 提供编译演示和测试功能
+ * 7. 集成日志系统和调试支持
  */
 
-const { Lexer } = require('./lexer/lexer');
+const Lexer = require('./lexer/lexer');
 const { Parser } = require('./parser/parser');
-const { SemanticAnalyzer } = require('./semantic/semantic');
-const { Optimizer } = require('./optimizer/optimizer');
-const { CodeGenerator } = require('./codegen/codegen');
+const SemanticAnalyzer = require('./semantic/semantic').SemanticAnalyzer;
+const Optimizer = require('./optimizer/optimizer');
+const CodeGenerator = require('./codegen/codegen');
+const { logger } = require('../utils/logger');
 
 // 编译结果类
 class CompilationResult {
@@ -93,6 +100,7 @@ class Compiler {
             ...options
         };
 
+        this.lexicalAnalyzer = new Lexer();
         this.semanticAnalyzer = new SemanticAnalyzer();
         this.codeGenerator = new CodeGenerator({  // 新增：代码生成器
             targetMachine: this.options.targetMachine,
@@ -107,68 +115,68 @@ class Compiler {
         const startTime = Date.now();
 
         try {
-            console.log(`🚀 开始编译 ${filename}...`);
+            logger.progress(`开始编译 ${filename}...`);
 
             // 第一阶段：词法分析
-            console.log('📝 阶段1: 词法分析...');
+            logger.phase('词法分析', '开始词法分析...');
             const lexicalResult = this.performLexicalAnalysis(sourceCode, result);
             if (!lexicalResult.success) {
-                console.log('❌ 词法分析失败');
+                logger.failure('词法分析失败');
                 return this.finishCompilation(result, startTime);
             }
-            console.log(`✅ 词法分析完成，生成 ${result.tokens.length} 个Token`);
+            logger.success(`词法分析完成，生成 ${result.tokens.length} 个Token`);
 
             // 第二阶段：语法分析
-            console.log('🌳 阶段2: 语法分析...');
+            logger.phase('语法分析', '开始语法分析...');
             const syntaxResult = this.performSyntaxAnalysis(result.tokens, result);
             if (!syntaxResult.success) {
-                console.log('❌ 语法分析失败');
+                logger.failure('语法分析失败');
                 return this.finishCompilation(result, startTime);
             }
-            console.log('✅ 语法分析完成，生成AST');
+            logger.success('语法分析完成，生成AST');
 
             // 第三阶段：语义分析
-            console.log('🔍 阶段3: 语义分析...');
+            logger.phase('语义分析', '开始语义分析...');
             const semanticResult = this.performSemanticAnalysis(result.ast, result);
             if (!semanticResult.success) {
-                console.log('❌ 语义分析失败');
+                logger.failure('语义分析失败');
                 return this.finishCompilation(result, startTime);
             }
-            console.log('✅ 语义分析完成');
+            logger.success('语义分析完成');
 
             // 第四阶段：代码优化
             if (this.options.enableOptimization) {
-                console.log('🔧 阶段4: 代码优化...');
+                logger.phase('代码优化', '开始代码优化...');
                 const optimizationResult = this.performOptimization(result.ast, result);
                 if (!optimizationResult.success) {
-                    console.log('❌ 代码优化失败');
+                    logger.failure('代码优化失败');
                     return this.finishCompilation(result, startTime);
                 }
-                console.log(`✅ 代码优化完成，进行了 ${result.statistics.totalOptimizations} 项优化`);
+                logger.success(`代码优化完成，进行了 ${result.statistics.totalOptimizations} 项优化`);
             } else {
-                console.log('⏭️ 跳过代码优化阶段');
+                logger.info('跳过代码优化阶段');
                 result.optimizedAST = result.ast; // 如果不优化，使用原始AST
             }
 
             // 第五阶段：目标代码生成
             if (this.options.enableCodeGeneration) {
-                console.log('🎯 阶段5: 目标代码生成...');
+                logger.phase('目标代码生成', '开始目标代码生成...');
                 const codegenResult = this.performCodeGeneration(result.optimizedAST, result);
                 if (!codegenResult.success) {
-                    console.log('❌ 目标代码生成失败');
+                    logger.failure('目标代码生成失败');
                     return this.finishCompilation(result, startTime);
                 }
-                console.log(`✅ 目标代码生成完成，生成了 ${result.statistics.instructionCount} 条指令`);
+                logger.success(`目标代码生成完成，生成了 ${result.statistics.instructionCount} 条指令`);
             } else {
-                console.log('⏭️ 跳过目标代码生成阶段');
+                logger.info('跳过目标代码生成阶段');
             }
 
             // 编译成功
             result.success = true;
-            console.log('🎉 编译成功完成!');
+            logger.success('编译成功完成!');
 
         } catch (error) {
-            console.error('💥 编译过程中发生内部错误:', error.message);
+            logger.error('编译过程中发生内部错误:', error.message);
             result.addError('internal', {
                 message: `Internal compiler error: ${error.message}`,
                 line: 0,
@@ -382,60 +390,60 @@ class Compiler {
 
     // 打印编译摘要
     printCompilationSummary(result) {
-        console.log('\n' + '='.repeat(60));
-        console.log('📊 编译摘要');
-        console.log('='.repeat(60));
+        logger.info('\n' + '='.repeat(60));
+        logger.info('📊 编译摘要');
+        logger.info('='.repeat(60));
 
         // 基本统计
-        console.log(`状态: ${result.success ? '✅ 成功' : '❌ 失败'}`);
-        console.log(`编译时间: ${result.statistics.compilationTime}ms`);
-        console.log(`Token数量: ${result.statistics.tokenCount}`);
-        console.log(`AST节点数量: ${result.statistics.astNodeCount}`);
-        console.log(`符号数量: ${result.statistics.symbolCount}`);
+        logger.info(`状态: ${result.success ? '✅ 成功' : '❌ 失败'}`);
+        logger.info(`编译时间: ${result.statistics.compilationTime}ms`);
+        logger.info(`Token数量: ${result.statistics.tokenCount}`);
+        logger.info(`AST节点数量: ${result.statistics.astNodeCount}`);
+        logger.info(`符号数量: ${result.statistics.symbolCount}`);
 
         // 优化统计
         if (this.options.enableOptimization) {
-            console.log(`优化时间: ${result.statistics.optimizationTime}ms`);
-            console.log(`优化次数: ${result.statistics.totalOptimizations}`);
+            logger.info(`优化时间: ${result.statistics.optimizationTime}ms`);
+            logger.info(`优化次数: ${result.statistics.totalOptimizations}`);
         }
 
         // 代码生成统计
         if (this.options.enableCodeGeneration && result.targetCode) {
-            console.log(`代码生成时间: ${result.statistics.codegenTime}ms`);
-            console.log(`生成指令数量: ${result.statistics.instructionCount}`);
+            logger.info(`代码生成时间: ${result.statistics.codegenTime}ms`);
+            logger.info(`生成指令数量: ${result.statistics.instructionCount}`);
         }
 
-        console.log(`错误数量: ${result.statistics.errorCount}`);
-        console.log(`警告数量: ${result.warnings.length}`);
+        logger.info(`错误数量: ${result.statistics.errorCount}`);
+        logger.info(`警告数量: ${result.warnings.length}`);
 
         // 错误详情
         if (result.hasErrors()) {
-            console.log('\n❌ 错误详情:');
+            logger.error('\n❌ 错误详情:');
             const allErrors = result.getAllErrors();
             allErrors.forEach((errorInfo, index) => {
                 const { phase, error } = errorInfo;
                 const errorMsg = error.message || (typeof error === 'string' ? error : JSON.stringify(error));
-                console.log(`  ${index + 1}. [${phase.toUpperCase()}] ${errorMsg}`);
+                logger.error(`  ${index + 1}. [${phase.toUpperCase()}] ${errorMsg}`);
             });
         }
 
         // 警告详情
         if (result.warnings.length > 0) {
-            console.log('\n⚠️ 警告详情:');
+            logger.warn('\n⚠️ 警告详情:');
             result.warnings.forEach((warning, index) => {
-                console.log(`  ${index + 1}. ${warning}`);
+                logger.warn(`  ${index + 1}. ${warning}`);
             });
         }
 
         // 目标代码输出
         if (result.success && result.targetCode && this.options.generateDebugInfo) {
-            console.log('\n🎯 生成的目标代码:');
-            console.log('-'.repeat(40));
-            console.log(result.targetCode.assembly);
-            console.log('-'.repeat(40));
+            logger.info('\n🎯 生成的目标代码:');
+            logger.info('-'.repeat(40));
+            logger.info(result.targetCode.assembly);
+            logger.info('-'.repeat(40));
         }
 
-        console.log('='.repeat(60));
+        logger.info('='.repeat(60));
     }
 
     // 编译文件
@@ -468,7 +476,7 @@ class Compiler {
         return {
             version: '1.0.0',
             name: 'Simple Compiler',
-            author: '编译系统课程设计',
+            author: 'poboll',
             features: [
                 'Lexical Analysis',
                 'Syntax Analysis',
@@ -512,7 +520,7 @@ module.exports = {
 
 // 如果直接运行此文件，执行演示
 if (require.main === module) {
-    console.log('🎯 编译器集成演示\n');
+    logger.info('🎯 编译器集成演示\n');
 
     const compiler = new Compiler({
         enableOptimization: true,
@@ -520,8 +528,12 @@ if (require.main === module) {
         generateDebugInfo: true
     });
 
-    // 演示代码
-    const testCode = `
+    // 获取命令行参数中的文件名
+    const filename = process.argv[2];
+
+    if (!filename) {
+        // 没有提供文件名时使用演示代码
+        const testCode = `
         let x = 10;
         const PI = 3.14;
         
@@ -540,20 +552,35 @@ if (require.main === module) {
         }
     `;
 
-    console.log('📝 测试源代码:');
-    console.log(testCode);
-    console.log('\n' + '='.repeat(60));
+        logger.info('📝 测试源代码:');
+        logger.info(testCode);
+        logger.info('\n' + '='.repeat(60));
 
-    // 编译测试代码
-    const result = compiler.compile(testCode, 'test.txt');
+        // 编译测试代码
+        const result = compiler.compile(testCode, 'test.txt');
 
-    if (result.success) {
-        console.log('\n🎉 编译器集成测试成功!');
+        if (result.success) {
+            logger.success('\n🎉 编译器集成测试成功!');
 
-        if (result.targetCode) {
-            console.log('\n📄 可以将生成的汇编代码保存到文件或在虚拟机中执行。');
+            if (result.targetCode) {
+                logger.info('\n📄 可以将生成的汇编代码保存到文件或在虚拟机中执行。');
+            }
+        } else {
+            logger.failure('\n❌ 编译器集成测试失败!');
         }
     } else {
-        console.log('\n❌ 编译器集成测试失败!');
+        // 编译指定的文件
+        logger.info(`📝 编译文件: ${filename}\n`);
+        const result = compiler.compileFile(filename);
+
+        if (result.success) {
+            logger.success('\n🎉 编译成功!');
+
+            if (result.targetCode) {
+                logger.info('\n📄 可以将生成的汇编代码保存到文件或在虚拟机中执行。');
+            }
+        } else {
+            logger.failure('\n❌ 编译失败!');
+        }
     }
 }

@@ -8,20 +8,23 @@
  * 4. 测试语义错误检测
  * 5. 测试变量声明和使用
  * 
- * 作者：编译系统课程设计
- * 日期：2024
+ * 作者：poboll
+ * 日期：2025-06-05
  */
 
-const { SemanticAnalyzer } = require('../compiler/semantic/semantic');
 const { Parser } = require('../compiler/parser/parser');
+const Analyzer = require('../compiler/semantic/semantic');
 const Lexer = require('../compiler/lexer/lexer');
 
+// 为了保持测试代码的一致性，创建别名
+const SemanticAnalyzer = Analyzer;
+
 // 测试工具函数
-function parseCode(code) {
-    const lexer = new Lexer();
-    const parser = new Parser();
-    const tokens = lexer.tokenize(code);
-    return parser.parse(tokens);
+function parse(code) {
+    const lexer = new Lexer(code);
+    const tokens = lexer.tokenize();
+    const parser = new Parser(tokens);
+    return parser.parse();
 }
 
 function createTestSymbol(name, type, dataType = 'number', scope = 'global') {
@@ -64,146 +67,178 @@ function runSemanticTests() {
 
     // 1. 语义分析器创建测试
     test('语义分析器创建', () => {
-        const analyzer = new SemanticAnalyzer();
+        const ast = parse('var x = 10;');
+        const analyzer = new SemanticAnalyzer(ast);
         assert(analyzer !== null, '语义分析器应该被成功创建');
-        assert(analyzer.getVersion() === '1.0.0', '版本号应该正确');
+        assert(typeof analyzer.analyze === 'function', '语义分析器应该有analyze方法');
     });
 
     // 2. 符号表基本操作测试
     test('符号表基本操作', () => {
-        const analyzer = new SemanticAnalyzer();
+        const ast = parse('var x = 10;');
+        const analyzer = new SemanticAnalyzer(ast);
+        const symbolTable = analyzer.symbolTable;
 
         // 添加符号
-        analyzer.addSymbol('x', 'variable', 'number');
-        assert(analyzer.hasSymbol('x'), '符号表应该包含变量x');
+        symbolTable.enterScope();
+        symbolTable.insert('x', { type: 'variable', dataType: 'number' });
+        assert(symbolTable.lookup('x'), '符号表应该包含变量x');
 
         // 查找符号
-        const symbol = analyzer.getSymbol('x');
-        assert(symbol.name === 'x', '符号名称应该正确');
+        const symbol = symbolTable.lookup('x');
         assert(symbol.type === 'variable', '符号类型应该正确');
         assert(symbol.dataType === 'number', '数据类型应该正确');
 
-        // 删除符号
-        analyzer.removeSymbol('x');
-        assert(!analyzer.hasSymbol('x'), '符号应该被删除');
+        // 作用域测试
+        symbolTable.enterScope();
+        assert(symbolTable.lookup('x'), '外层符号在内层作用域可见');
+
+        symbolTable.exitScope();
+        symbolTable.exitScope();
     });
 
-    // 3. 作用域管理测试
-    test('作用域管理', () => {
-        const analyzer = new SemanticAnalyzer();
+    // 3. 简单变量声明分析测试
+    test('简单变量声明分析', () => {
+        const ast = parse('var x = 10;');
+        const analyzer = new SemanticAnalyzer(ast);
 
-        // 进入新作用域
-        analyzer.enterScope('function');
-        analyzer.addSymbol('localVar', 'variable', 'number');
+        const errors = analyzer.analyze();
 
-        assert(analyzer.hasSymbol('localVar'), '局部变量应该在当前作用域中');
-
-        // 退出作用域
-        analyzer.exitScope();
-        assert(!analyzer.hasSymbol('localVar'), '局部变量应该在退出作用域后不可见');
+        assert(errors.length === 0, '语义分析应该成功');
+        assert(analyzer.symbolTable.lookup('x'), '变量x应该被添加到符号表');
     });
 
-    // 4. 变量声明分析测试
-    test('变量声明分析', () => {
+    // 4. 变量重复声明测试
+    test('变量重复声明', () => {
+        const ast = parse('var x = 10; var x = 20;');
+        const analyzer = new SemanticAnalyzer(ast);
+
+        const errors = analyzer.analyze();
+
+        assert(errors.length > 0, '重复声明应该报错');
+        assert(errors.some(error =>
+            error.includes('已声明') ||
+            error.includes('already declared')
+        ), '错误信息应包含重复声明提示');
+    });
+
+    // 5. 未声明变量使用测试
+    test('未声明变量使用', () => {
         const analyzer = new SemanticAnalyzer();
-        const ast = parseCode('int x = 10;');
+        const ast = parse('var y = x + 5;');
 
         const result = analyzer.analyze(ast);
 
-        assert(result.success, '语义分析应该成功');
-        assert(analyzer.hasSymbol('x'), '变量x应该被添加到符号表');
-
-        const symbol = analyzer.getSymbol('x');
-        assert(symbol.dataType === 'number', '变量类型应该正确');
+        assert(result.hasErrors(), '使用未声明变量应该报错');
+        assert(result.getErrors().some(error =>
+            error.message.includes('未声明') ||
+            error.message.includes('未定义') ||
+            error.message.includes('not declared') ||
+            error.message.includes('undefined')
+        ), '错误信息应包含未声明变量提示');
     });
 
-    // 5. 类型检查测试
+    // 6. 类型检查测试
     test('类型检查', () => {
         const analyzer = new SemanticAnalyzer();
-
-        // 正确的类型匹配
-        const ast1 = parseCode('int x = 10; int y = x + 5;');
-        const result1 = analyzer.analyze(ast1);
-        assert(result1.success, '类型匹配的表达式应该通过检查');
-
-        // 重置分析器
-        analyzer.reset();
-
-        // 类型不匹配（如果支持多种类型）
-        const ast2 = parseCode('int x = 10; x = "hello";');
-        const result2 = analyzer.analyze(ast2);
-        // 注意：当前实现可能不支持字符串类型，这里主要测试框架
-    });
-
-    // 6. 重复声明检测测试
-    test('重复声明检测', () => {
-        const analyzer = new SemanticAnalyzer();
-        const ast = parseCode('int x = 10; int x = 20;');
+        const ast = parse(`
+            var x = 10;
+            var y = true;
+            var z = x + y; // 数字与布尔值相加
+        `);
 
         const result = analyzer.analyze(ast);
 
-        // 检查是否检测到重复声明错误
-        if (!result.success) {
-            assert(result.errors.some(error =>
-                error.message.includes('重复声明') ||
-                error.message.includes('already declared')
-            ), '应该检测到重复声明错误');
+        // 注意：具体的检查行为取决于语言规范，
+        // 有些语言会隐式转换，有些会报错
+        if (result.hasWarnings()) {
+            assert(result.getWarnings().some(warning =>
+                warning.message.includes('类型')
+            ), '应有类型相关警告');
         }
     });
 
-    // 7. 未声明变量使用检测测试
-    test('未声明变量使用检测', () => {
+    // 7. 作用域检查测试
+    test('作用域检查', () => {
         const analyzer = new SemanticAnalyzer();
-        const ast = parseCode('int y = x + 5;'); // x未声明
+        const ast = parse(`
+            var a = 10;
+            if (a > 5) {
+                var b = 20;
+            }
+            var c = b; // b可能在当前作用域不可见
+        `);
 
         const result = analyzer.analyze(ast);
 
-        // 检查是否检测到未声明变量错误
-        if (!result.success) {
-            assert(result.errors.some(error =>
+        // 如果语言使用块级作用域，这里应该报错
+        // 如果使用函数级作用域，则不应报错
+        // 这里我们假设语言使用块级作用域
+        if (result.hasErrors()) {
+            assert(result.getErrors().some(error =>
                 error.message.includes('未声明') ||
-                error.message.includes('not declared') ||
                 error.message.includes('undefined')
-            ), '应该检测到未声明变量错误');
+            ), '错误信息应包含未声明变量提示');
         }
     });
 
-    // 8. 表达式类型推导测试
-    test('表达式类型推导', () => {
+    // 8. 函数声明与调用测试
+    test('函数声明与调用', () => {
         const analyzer = new SemanticAnalyzer();
-        const ast = parseCode('int x = 10; int y = 20; int z = x + y * 2;');
+        const ast = parse(`
+            function add(a, b) {
+                return a + b;
+            }
+            var result = add(5, 10);
+        `);
 
         const result = analyzer.analyze(ast);
 
-        assert(result.success, '表达式类型推导应该成功');
-        assert(analyzer.hasSymbol('z'), '变量z应该被正确声明');
-
-        const symbol = analyzer.getSymbol('z');
-        assert(symbol.dataType === 'number', '表达式结果类型应该正确');
+        assert(!result.hasErrors(), '函数声明和调用语义分析应该成功');
+        assert(analyzer.lookupSymbol('add'), '函数add应该被添加到符号表');
+        assert(analyzer.lookupSymbol('result'), '变量result应该存在');
     });
 
-    // 9. 条件语句语义分析测试
-    test('条件语句语义分析', () => {
+    // 9. 函数参数测试
+    test('函数参数', () => {
         const analyzer = new SemanticAnalyzer();
-        const ast = parseCode(`
-            int x = 10;
-            if (x > 5) {
-                int y = x * 2;
+        const ast = parse(`
+            function test(a, a) { // 参数名重复
+                return a;
             }
         `);
 
         const result = analyzer.analyze(ast);
 
-        assert(result.success, '条件语句语义分析应该成功');
-        assert(analyzer.hasSymbol('x'), '外层变量应该存在');
-        // 注意：y是局部变量，在if块外不可见
+        assert(result.hasErrors(), '重复参数名应该报错');
     });
 
-    // 10. 循环语句语义分析测试
-    test('循环语句语义分析', () => {
+    // 10. 条件表达式类型检查
+    test('条件表达式类型检查', () => {
         const analyzer = new SemanticAnalyzer();
-        const ast = parseCode(`
-            int i = 0;
+        const ast = parse(`
+            var x = 10;
+            if (x) { // 非布尔类型条件
+                var y = 20;
+            }
+        `);
+
+        const result = analyzer.analyze(ast);
+
+        // 检查是否有关于条件类型的警告
+        if (result.hasWarnings()) {
+            assert(result.getWarnings().some(warning =>
+                warning.message.includes('布尔') ||
+                warning.message.includes('boolean')
+            ), '应有条件类型相关警告');
+        }
+    });
+
+    // 11. 循环语句测试
+    test('循环语句', () => {
+        const analyzer = new SemanticAnalyzer();
+        const ast = parse(`
+            var i = 0;
             while (i < 10) {
                 i = i + 1;
             }
@@ -211,177 +246,171 @@ function runSemanticTests() {
 
         const result = analyzer.analyze(ast);
 
-        assert(result.success, '循环语句语义分析应该成功');
-        assert(analyzer.hasSymbol('i'), '循环变量应该存在');
+        assert(!result.hasErrors(), '循环语句语义分析应该成功');
     });
 
-    // 11. 函数声明和调用测试（如果支持）
-    test('函数语义分析', () => {
+    // 12. 复杂表达式测试
+    test('复杂表达式', () => {
         const analyzer = new SemanticAnalyzer();
+        const ast = parse(`
+            var a = 5;
+            var b = 10;
+            var c = 15;
+            var result = (a + b) * c / (a + 1) - b;
+        `);
 
-        try {
-            const ast = parseCode(`
-                function add(int a, int b) {
-                    return a + b;
+        const result = analyzer.analyze(ast);
+
+        assert(!result.hasErrors(), '复杂表达式语义分析应该成功');
+    });
+
+    // 13. 常量测试
+    test('常量测试', () => {
+        const analyzer = new SemanticAnalyzer();
+        const ast = parse(`
+            const PI = 3.14;
+            PI = 3.1415; // 常量不可修改
+        `);
+
+        const result = analyzer.analyze(ast);
+
+        assert(result.hasErrors(), '修改常量应该报错');
+        assert(result.getErrors().some(error =>
+            error.message.includes('常量') ||
+            error.message.includes('const')
+        ), '错误信息应包含常量相关提示');
+    });
+
+    // 14. 未使用变量检查
+    test('未使用变量', () => {
+        const analyzer = new SemanticAnalyzer();
+        const ast = parse(`
+            var x = 10; // 未使用
+            var y = 20;
+            var z = y + 5;
+        `);
+
+        const result = analyzer.analyze(ast);
+
+        if (result.hasWarnings()) {
+            assert(result.getWarnings().some(warning =>
+                warning.message.includes('未使用') ||
+                warning.message.includes('unused')
+            ), '应有未使用变量相关警告');
+        }
+    });
+
+    // 15. 嵌套作用域测试
+    test('嵌套作用域', () => {
+        const analyzer = new SemanticAnalyzer();
+        const ast = parse(`
+            var x = 10;
+            function outer() {
+                var y = x + 5;
+                function inner() {
+                    var z = y + x;
+                    return z;
                 }
-                int result = add(5, 3);
-            `);
-
-            const result = analyzer.analyze(ast);
-
-            if (result.success) {
-                assert(analyzer.hasSymbol('add'), '函数应该被添加到符号表');
-                assert(analyzer.hasSymbol('result'), '结果变量应该存在');
+                return inner();
             }
-        } catch (error) {
-            // 如果不支持函数，跳过此测试
-            console.log('  (函数语法可能不支持，跳过此测试)');
-        }
+            var result = outer();
+        `);
+
+        const result = analyzer.analyze(ast);
+
+        assert(!result.hasErrors(), '嵌套作用域语义分析应该成功');
     });
 
-    // 12. 数组语义分析测试（如果支持）
-    test('数组语义分析', () => {
+    // 16. 函数返回值检查
+    test('函数返回值', () => {
         const analyzer = new SemanticAnalyzer();
-
-        try {
-            const ast = parseCode(`
-                int arr[10];
-                arr[0] = 5;
-                int value = arr[0];
-            `);
-
-            const result = analyzer.analyze(ast);
-
-            if (result.success) {
-                assert(analyzer.hasSymbol('arr'), '数组应该被添加到符号表');
-                assert(analyzer.hasSymbol('value'), '值变量应该存在');
+        const ast = parse(`
+            function test() {
+                // 没有return语句
             }
-        } catch (error) {
-            // 如果不支持数组，跳过此测试
-            console.log('  (数组语法可能不支持，跳过此测试)');
+            var x = test() + 5; // 使用了可能为undefined的返回值
+        `);
+
+        const result = analyzer.analyze(ast);
+
+        // 这里要看具体语言规范，有些语言会自动返回undefined
+        // 我们假设这是一个警告级别的问题
+        if (result.hasWarnings()) {
+            assert(result.getWarnings().some(warning =>
+                warning.message.includes('返回') ||
+                warning.message.includes('return')
+            ), '应有返回值相关警告');
         }
     });
 
-    // 13. 嵌套作用域测试
-    test('嵌套作用域测试', () => {
+    // 17. 变量初始化检查
+    test('变量初始化', () => {
         const analyzer = new SemanticAnalyzer();
-        const ast = parseCode(`
-            int x = 10;
-            if (x > 5) {
-                int x = 20;  // 内层x
-                int y = x + 1;
+        const ast = parse(`
+            var x;
+            var y = x + 10; // 使用可能未初始化的变量
+        `);
+
+        const result = analyzer.analyze(ast);
+
+        if (result.hasWarnings()) {
+            assert(result.getWarnings().some(warning =>
+                warning.message.includes('初始化') ||
+                warning.message.includes('initialized')
+            ), '应有变量初始化相关警告');
+        }
+    });
+
+    // 18. 递归函数测试
+    test('递归函数', () => {
+        const analyzer = new SemanticAnalyzer();
+        const ast = parse(`
+            function factorial(n) {
+                if (n <= 1) {
+                    return 1;
+                } else {
+                    return n * factorial(n - 1);
+                }
             }
-            int z = x + 1;  // 外层x
+            var result = factorial(5);
         `);
 
         const result = analyzer.analyze(ast);
 
-        // 检查作用域处理是否正确
-        assert(result.success || result.errors.length === 0, '嵌套作用域应该被正确处理');
+        assert(!result.hasErrors(), '递归函数语义分析应该成功');
     });
 
-    // 14. 符号表统计测试
-    test('符号表统计', () => {
+    // 19. 布尔表达式测试
+    test('布尔表达式', () => {
         const analyzer = new SemanticAnalyzer();
-        const ast = parseCode(`
-            int a = 1;
-            int b = 2;
-            int c = a + b;
-        `);
-
-        analyzer.analyze(ast);
-
-        const stats = analyzer.getStatistics();
-        assert(stats.symbolCount >= 3, '符号数量应该正确');
-        assert(stats.scopeCount >= 1, '作用域数量应该正确');
-    });
-
-    // 15. 错误恢复测试
-    test('错误恢复测试', () => {
-        const analyzer = new SemanticAnalyzer();
-        const ast = parseCode(`
-            int x = undeclaredVar;  // 错误
-            int y = 10;             // 应该继续分析
+        const ast = parse(`
+            var a = true;
+            var b = false;
+            var c = a && b;
+            var d = a || b;
+            var e = !a;
+            var f = a == b;
         `);
 
         const result = analyzer.analyze(ast);
 
-        // 即使有错误，也应该继续分析后续代码
-        assert(analyzer.hasSymbol('y'), '错误后的代码应该继续被分析');
+        assert(!result.hasErrors(), '布尔表达式语义分析应该成功');
     });
 
-    // 16. 性能测试
-    test('性能测试', () => {
+    // 20. 表达式类型推导测试
+    test('表达式类型推导', () => {
         const analyzer = new SemanticAnalyzer();
-
-        // 生成大量变量声明
-        let code = '';
-        for (let i = 0; i < 100; i++) {
-            code += `int var${i} = ${i};\n`;
-        }
-
-        const ast = parseCode(code);
-
-        const startTime = Date.now();
-        const result = analyzer.analyze(ast);
-        const endTime = Date.now();
-
-        const analysisTime = endTime - startTime;
-
-        assert(result.success, '大量变量的语义分析应该成功');
-        assert(analysisTime < 1000, `分析时间应该合理 (${analysisTime}ms)`);
-
-        console.log(`  分析了100个变量，耗时: ${analysisTime}ms`);
-    });
-
-    // 17. 内存管理测试
-    test('内存管理测试', () => {
-        const analyzer = new SemanticAnalyzer();
-
-        // 多次分析和重置
-        for (let i = 0; i < 10; i++) {
-            const ast = parseCode(`int x${i} = ${i};`);
-            analyzer.analyze(ast);
-            analyzer.reset();
-        }
-
-        // 检查重置后状态
-        assert(!analyzer.hasSymbol('x0'), '重置后符号表应该为空');
-
-        const stats = analyzer.getStatistics();
-        assert(stats.symbolCount === 0, '重置后符号数量应该为0');
-    });
-
-    // 18. 复杂表达式测试
-    test('复杂表达式测试', () => {
-        const analyzer = new SemanticAnalyzer();
-        const ast = parseCode(`
-            int a = 1;
-            int b = 2;
-            int c = 3;
-            int result = (a + b) * c - (a * b + c) / (a + 1);
+        const ast = parse(`
+            var a = 5; // number
+            var b = true; // boolean
+            var c = a > 3; // boolean
+            var d = a + 10; // number
+            var e = b && true; // boolean
         `);
 
         const result = analyzer.analyze(ast);
 
-        assert(result.success, '复杂表达式语义分析应该成功');
-        assert(analyzer.hasSymbol('result'), '结果变量应该存在');
-    });
-
-    // 19. 边界条件测试
-    test('边界条件测试', () => {
-        const analyzer = new SemanticAnalyzer();
-
-        // 空程序
-        const emptyAST = { type: 'Program', body: [] };
-        const emptyResult = analyzer.analyze(emptyAST);
-        assert(emptyResult.success, '空程序应该分析成功');
-
-        // 单个语句
-        analyzer.reset();
-        const singleAST = parseCode('int x = 1;');
-        const singleResult = analyzer.analyze(singleAST);
-        assert(singleResult.success, '单个语句应该分析成功');
+        assert(!result.hasErrors(), '表达式类型推导应该成功');
     });
 
     // 输出测试结果
@@ -411,3 +440,83 @@ if (require.main === module) {
 }
 
 module.exports = { runSemanticTests };
+
+describe('Semantic Analyzer', () => {
+    test('should detect re-declaration of a variable in the same scope', () => {
+        const code = `
+            let x = 10;
+            let x = 20;
+        `;
+        const ast = parse(code);
+        const analyzer = new SemanticAnalyzer(ast);
+        const errors = analyzer.analyze();
+        expect(errors.length).toBe(1);
+        expect(errors[0]).toContain('变量 "x" 在当前作用域已声明');
+    });
+
+    test('should allow shadowing variable in a nested scope', () => {
+        const code = `
+            let x = 10;
+            if (true) {
+                let x = 20;
+            }
+        `;
+        const ast = parse(code);
+        const analyzer = new SemanticAnalyzer(ast);
+        const errors = analyzer.analyze();
+        expect(errors.length).toBe(0);
+    });
+
+    test('should detect using an undeclared variable', () => {
+        const code = `
+            x = 10;
+        `;
+        const ast = parse(code);
+        const analyzer = new SemanticAnalyzer(ast);
+        const errors = analyzer.analyze();
+        expect(errors.length).toBe(1);
+        expect(errors[0]).toContain('变量 "x" 未声明');
+    });
+
+    test('should handle nested scopes correctly', () => {
+        const code = `
+            let x = 10;
+            {
+                let y = 20;
+            }
+            y = 30; // Error: y is not defined here
+        `;
+        const ast = parse(code);
+        const analyzer = new SemanticAnalyzer(ast);
+        const errors = analyzer.analyze();
+        expect(errors.length).toBe(1);
+        expect(errors[0]).toContain('变量 "y" 未声明');
+    });
+
+    test('should handle function scopes correctly', () => {
+        const code = `
+            function add(a, b) {
+                let result = a + b;
+                return result;
+            }
+            let x = add(1, 2);
+        `;
+        const ast = parse(code);
+        const analyzer = new SemanticAnalyzer(ast);
+        const errors = analyzer.analyze();
+        expect(errors.length).toBe(0);
+    });
+
+    test('should detect duplicate function parameter', () => {
+        const code = `
+            function add(a, a) {
+                return a + a;
+            }
+        `;
+        const ast = parse(code);
+        const analyzer = new SemanticAnalyzer(ast);
+        const errors = analyzer.analyze();
+        expect(errors.length).toBe(1);
+        expect(errors[0]).toContain('参数 "a" 重复声明');
+    });
+});

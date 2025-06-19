@@ -5,7 +5,7 @@
  * 1. 运行基本测试验证
  * 2. 生成简单测试报告
  * 
- * 作者：编译系统课程设计
+ * 作者：poboll
  * 日期：2024
  */
 
@@ -55,7 +55,7 @@ function testModules() {
     // 1. 测试词法分析器
     console.log('\n📝 测试词法分析器...');
     try {
-        const Lexer = require('../compiler/lexer/lexer');
+        const { Lexer } = require('../compiler/lexer/lexer');
         const lexer = new Lexer('let x = 10;');
         const tokens = lexer.tokenize();
 
@@ -73,7 +73,7 @@ function testModules() {
     console.log('\n🌳 测试语法分析器...');
     try {
         const { Parser } = require('../compiler/parser/parser');
-        const Lexer = require('../compiler/lexer/lexer');
+        const { Lexer } = require('../compiler/lexer/lexer');
 
         const lexer = new Lexer('let x = 10;');
         const tokens = lexer.tokenize();

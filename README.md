@@ -22,7 +22,7 @@
 .
 ├── Makefile               # C语言版本构建文件
 ├── package.json           # Node.js项目配置文件
-├── README.md              # 项目说明文档
+  ├── README.md              # 项目说明文档
 ├── c_compiler             # 编译生成的可执行文件
 ├── output.c               # 编译生成的目标C代码文件
 ├── src

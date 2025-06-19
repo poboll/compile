@@ -58,4 +58,13 @@
 - **创建日期**: 2024-07-26
 - **作者**: AI Assistant
 
+### 7. `/Users/Apple/Downloads/bianyi/docs/designmd`
+- **文件路径**: `/Users/Apple/Downloads/bianyi/docs/designmd`
+- **类型**: [文档|课程设计论文]
+- **功能**: 课程设计论文文档，包含完整的论文结构、章节内容和学术格式。
+- **依赖**: []
+- **被引用**: [课程设计提交系统]
+- **创建日期**: 2024-12-19
+- **作者**: AI Assistant
+
 ---

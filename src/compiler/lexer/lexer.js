@@ -1,15 +1,20 @@
 /**
  * 词法分析器 - lexer.js
  * @description 词法分析器，负责将源代码分解为token序列，实现编译器的第一个阶段
+ *              采用有限状态自动机实现，支持多种词法单元识别
  * @module compiler/lexer/lexer
  * @author poboll
- * @date 2024-07-26
+ * @date 2025
+ * @version 1.0
  * 
  * 主要功能：
  * 1. 识别关键字、标识符、数字、字符串等词法单元
  * 2. 处理注释和空白字符
  * 3. 提供位置信息用于错误报告
  * 4. 支持错误恢复和容错处理
+ * 5. 实现完整的Token类型定义
+ * 6. 提供灵活的词法分析接口
+ * 7. 支持多种数字格式和字符串转义
  */
 
 // 词法分析器实现
@@ -63,7 +68,7 @@ class Lexer {
      * 构造函数
      * @param {string} sourceCode - 待分析的源代码字符串
      */
-    constructor(sourceCode) {
+    constructor(sourceCode = '') {
         this.sourceCode = sourceCode;    // 源代码字符串
         this.tokens = [];               // 生成的词法单元数组
         this.currentIndex = 0;          // 当前字符索引位置
@@ -73,12 +78,25 @@ class Lexer {
     }
 
     /**
+     * 设置源代码
+     * @param {string} sourceCode - 待分析的源代码字符串
+     */
+    setSourceCode(sourceCode) {
+        this.sourceCode = sourceCode;
+        this.tokens = [];
+        this.currentIndex = 0;
+        this.line = 1;
+        this.column = 1;
+        this.errors = [];
+    }
+
+    /**
      * 词法分析主方法
      * 将源代码转换为词法单元序列
      * @returns {Token[]} 词法单元数组
      */
     tokenize() {
-        console.log('词法分析器: 开始分析源代码...');
+        // console.log(`--- Lexer: Starting tokenization for source ---\n${this.sourceCode}\n---`);
         while (this.currentIndex < this.sourceCode.length) {
             let char = this.sourceCode[this.currentIndex];
 
@@ -101,35 +119,35 @@ class Lexer {
 
             // 3. 识别数字字面量
             if (this.isDigit(char)) {
-                this.tokens.push(this.consumeNumber());
+                this.consumeNumber();
                 continue;
             }
 
             // 4. 识别标识符或关键字 (以字母或下划线开头)
             if (this.isLetter(char) || char === '_') {
-                this.tokens.push(this.consumeIdentifierOrKeyword());
+                this.consumeIdentifierOrKeyword();
                 continue;
             }
 
             // 5. 识别字符串字面量
             if (char === '"' || char === "'") {
-                this.tokens.push(this.consumeString(char));
+                this.consumeString(char);
                 continue;
             }
 
             // 6. 识别操作符和分隔符
             // TODO: 扩展以支持更多操作符和多字符操作符
             if (['+', '-', '*', '/', '=', '<', '>', ';', '(', ')', '{', '}', ',', '.'].includes(char)) {
+                // console.log(`  [Lexer] Tokenized OPERATOR: ${char}`);
                 this.tokens.push(new Token(TokenType.OPERATOR, char, this.line, this.column));
                 this.advance();
                 continue;
             }
 
-            // 7. 处理未知字符
-            const errorMsg = `未知字符 '${char}'`;
+            // 7. 处理Unknown character
+            const errorMsg = `Unknown character '${char}'`;
             this.errors.push({ message: errorMsg, line: this.line, column: this.column, value: char });
             this.tokens.push(new Token(TokenType.UNKNOWN, char, this.line, this.column));
-            console.warn(`词法分析错误: ${errorMsg} 位置: 第${this.line}行, 第${this.column}列`);
             this.advance();
         }
 
@@ -193,21 +211,29 @@ class Lexer {
 
     /**
      * 消费数字字面量
-     * @returns {Token} 数字类型的词法单元
      */
     consumeNumber() {
         let start = this.currentIndex;
         let startLine = this.line;
         let startColumn = this.column;
-
-        // 消费所有连续的数字字符
+        let numberStr = '';
         while (this.currentIndex < this.sourceCode.length && this.isDigit(this.sourceCode[this.currentIndex])) {
+            numberStr += this.sourceCode[this.currentIndex];
             this.advance();
         }
 
-        // TODO: 支持浮点数 (小数点和科学计数法)
-        const value = this.sourceCode.substring(start, this.currentIndex);
-        return new Token(TokenType.NUMBER, value, startLine, startColumn);
+        // Handle floating point numbers
+        if (this.sourceCode[this.currentIndex] === '.' && this.isDigit(this.peek())) {
+            numberStr += '.';
+            this.advance();
+            while (this.currentIndex < this.sourceCode.length && this.isDigit(this.sourceCode[this.currentIndex])) {
+                numberStr += this.sourceCode[this.currentIndex];
+                this.advance();
+            }
+        }
+
+        this.tokens.push(new Token(TokenType.NUMBER, numberStr, startLine, startColumn));
+        // console.log(`  [Lexer] Tokenized NUMBER: ${numberStr}`);
     }
 
     /**
@@ -221,7 +247,6 @@ class Lexer {
 
     /**
      * 消费标识符或关键字
-     * @returns {Token} 标识符或关键字类型的词法单元
      */
     consumeIdentifierOrKeyword() {
         let start = this.currentIndex;
@@ -240,11 +265,14 @@ class Lexer {
 
         // 检查是否为关键字
         if (KEYWORDS.hasOwnProperty(value)) {
-            return new Token(KEYWORDS[value], value, startLine, startColumn);
+            this.tokens.push(new Token(KEYWORDS[value], value, startLine, startColumn));
+            // console.log(`  [Lexer] Tokenized KEYWORD: ${value}`);
+            return;
         }
 
         // 否则为标识符
-        return new Token(TokenType.IDENTIFIER, value, startLine, startColumn);
+        this.tokens.push(new Token(TokenType.IDENTIFIER, value, startLine, startColumn));
+        // console.log(`  [Lexer] Tokenized IDENTIFIER: ${value}`);
     }
 
     /**
@@ -273,114 +301,97 @@ class Lexer {
     }
 
     /**
-     * 消费多行注释 (/* ... */ 格式)
-    * 处理跨行注释并检查是否正确闭合
+     * 处理跨行注释并检查是否正确闭合
      */
-consumeMultiLineComment() {
-    const startLine = this.line;
-    const startColumn = this.column;
-    let commentValue = '';
+    consumeMultiLineComment() {
+        const startLine = this.line;
+        const startColumn = this.column;
+        let commentValue = '/*';
 
-    this.advance(); // 跳过 '/'
-    this.advance(); // 跳过 '*'
-    commentValue += '/*';
+        this.advance(); // Consume '*'
+        this.advance(); // Consume '/'
 
-    // 查找注释结束标记 */
-    while (this.currentIndex < this.sourceCode.length) {
-        const char = this.sourceCode[this.currentIndex];
-        if (char === '*' && this.peek() === '/') {
-            commentValue += '*/';
-            this.advance(); // 跳过 '*'
-            this.advance(); // 跳过 '/'
-            // 根据需要决定是否将注释Token添加到tokens数组中
-            // this.tokens.push(new Token(TokenType.COMMENT, commentValue, startLine, startColumn));
-            return; // 注释处理完成
-        }
-        commentValue += char;
-        this.advance();
-    }
-
-    // 如果到达文件末尾仍未闭合注释，则为错误
-    const errorMsg = `未闭合的多行注释`;
-    this.errors.push({ message: errorMsg, line: startLine, column: startColumn, value: commentValue });
-    console.warn(`词法分析错误: ${errorMsg} 开始位置: 第${startLine}行, 第${startColumn}列`);
-    // 创建一个未知类型的词法单元
-    this.tokens.push(new Token(TokenType.UNKNOWN, commentValue, startLine, startColumn));
-}
-
-/**
-     * 消费字符串字面量
-     * @param {string} quoteType - 引号类型 ('"' 或 "'")
-     * @returns {Token} 字符串类型的词法单元
-     */
-consumeString(quoteType) {
-    let start = this.currentIndex;
-    let startLine = this.line;
-    let startColumn = this.column;
-    let stringValue = '';
-
-    this.advance(); // 跳过起始引号
-
-    while (this.currentIndex < this.sourceCode.length) {
-        const char = this.sourceCode[this.currentIndex];
-
-        // 遇到结束引号
-        if (char === quoteType) {
-            this.advance(); // 跳过结束引号
-            return new Token(TokenType.STRING, stringValue, startLine, startColumn);
-        }
-
-        // 处理转义字符
-        if (char === '\\') {
-            this.advance(); // 跳过反斜杠
-            if (this.currentIndex < this.sourceCode.length) {
-                const nextChar = this.sourceCode[this.currentIndex];
-                switch (nextChar) {
-                    case 'n': stringValue += '\n'; break;   // 换行符
-                    case 't': stringValue += '\t'; break;   // 制表符
-                    case 'r': stringValue += '\r'; break;   // 回车符
-                    case '\'': stringValue += '\''; break; // 单引号
-                    case '"': stringValue += '"'; break;   // 双引号
-                    case '\\': stringValue += '\\'; break; // 反斜杠
-                    default:
-                        // 无效的转义序列
-                        const invalidEscapeMsg = `无效的转义序列 '\\${nextChar}'`;
-                        this.errors.push({ message: invalidEscapeMsg, line: this.line, column: this.column - 1, value: `\\${nextChar}` });
-                        console.warn(`词法分析错误: ${invalidEscapeMsg} 位置: 第${this.line}行, 第${this.column - 1}列`);
-                        stringValue += char; // 保留反斜杠
-                        stringValue += nextChar; // 保留其后的字符
-                        break;
-                }
-                this.advance(); // 跳过转义序列的第二个字符
-            } else {
-                // 到达文件末尾，但转义序列未完成
-                const unterminatedEscapeMsg = `文件末尾的未完成转义序列`;
-                this.errors.push({ message: unterminatedEscapeMsg, line: this.line, column: this.column - 1, value: char });
-                console.warn(`词法分析错误: ${unterminatedEscapeMsg} 位置: 第${this.line}行, 第${this.column - 1}列`);
-                stringValue += char; // 保留反斜杠
+        while (this.currentIndex < this.sourceCode.length) {
+            if (this.sourceCode[this.currentIndex] === '*' && this.peek() === '/') {
+                this.advance(); // Consume '*'
+                this.advance(); // Consume '/'
+                return; // Successfully ignored comment
             }
-        } else {
-            // 普通字符
-            stringValue += char;
+            commentValue += this.sourceCode[this.currentIndex];
             this.advance();
         }
+
+        // Unterminated comment
+        const errorMsg = `Unterminated multi-line comment`;
+        this.errors.push({ message: errorMsg, line: startLine, column: startColumn, value: commentValue });
+        this.tokens.push(new Token(TokenType.UNKNOWN, commentValue, startLine, startColumn));
     }
 
-    // 如果到达文件末尾仍未闭合字符串，则为错误
-    const unterminatedStringMsg = `未闭合的字符串`;
-    this.errors.push({ message: unterminatedStringMsg, line: startLine, column: startColumn, value: stringValue });
-    console.warn(`词法分析错误: ${unterminatedStringMsg} 开始位置: 第${startLine}行, 第${startColumn}列`);
-    return new Token(TokenType.UNKNOWN, stringValue, startLine, startColumn); // 返回未知类型词法单元
-}
+    /**
+     * 消费字符串字面量
+     * @param {string} quoteType - 字符串的引号类型 (' or ")
+     */
+    consumeString(quoteType) {
+        const startLine = this.line;
+        const startColumn = this.column;
+        let stringValue = '';
 
-/**
- * 获取词法分析过程中的错误信息
- * @returns {Array} 错误信息数组
- */
-getErrors() {
-    return this.errors;
-}
+        this.advance(); // Consume opening quote
+
+        while (this.currentIndex < this.sourceCode.length) {
+            let char = this.sourceCode[this.currentIndex];
+
+            if (char === quoteType) {
+                this.advance(); // Consume closing quote
+                this.tokens.push(new Token(TokenType.STRING, stringValue, startLine, startColumn));
+                // console.log(`  [Lexer] Tokenized STRING: "${stringValue}"`);
+                return;
+            }
+
+            if (char === '\n') {
+                this.errors.push({ message: 'Unterminated string', line: startLine, column: startColumn, value: stringValue });
+                this.tokens.push(new Token(TokenType.UNKNOWN, quoteType + stringValue, startLine, startColumn));
+                return;
+            }
+
+            if (char === '\\') {
+                this.advance(); // Consume backslash
+                if (this.currentIndex >= this.sourceCode.length) {
+                    this.errors.push({ message: 'Unterminated string', line: startLine, column: startColumn, value: stringValue });
+                    this.tokens.push(new Token(TokenType.UNKNOWN, quoteType + stringValue, startLine, startColumn));
+                    return;
+                }
+                let nextChar = this.sourceCode[this.currentIndex];
+                switch (nextChar) {
+                    case 'n': stringValue += '\n'; break;
+                    case 't': stringValue += '\t'; break;
+                    case '\\': stringValue += '\\'; break;
+                    case "'": stringValue += "'"; break;
+                    case '"': stringValue += '"'; break;
+                    default:
+                        this.errors.push({ message: `Invalid escape sequence '\\${nextChar}'`, line: this.line, column: this.column - 1, value: `\\${nextChar}` });
+                        stringValue += nextChar; // Per JS behavior
+                        break;
+                }
+            } else {
+                stringValue += char;
+            }
+            this.advance();
+        }
+
+        // If loop finishes, it's an unterminated string
+        this.errors.push({ message: 'Unterminated string', line: startLine, column: startColumn, value: stringValue });
+        this.tokens.push(new Token(TokenType.UNKNOWN, quoteType + stringValue, startLine, startColumn));
+    }
+
+    /**
+     * 获取词法分析过程中的错误信息
+     * @returns {Array} 错误信息数组
+     */
+    getErrors() {
+        return this.errors;
+    }
 }
 
 // 导出词法分析器类和相关组件
-module.exports = { Lexer, Token, TokenType };
+module.exports = Lexer;

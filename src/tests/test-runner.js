@@ -7,10 +7,12 @@
  * 3. 统计测试覆盖率
  * 4. 性能分析
  * 
- * 作者：编译系统课程设计
+ * 作者：poboll
  * 日期：2024
  */
 
+require('../utils/test-logger');
+const { logger } = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
 
@@ -131,8 +133,8 @@ function runTestFile(filePath) {
  * 运行所有测试
  */
 function runAllTests() {
-    console.log('🚀 开始运行编译系统完整测试套件\n');
-    console.log('='.repeat(60));
+    logger.info('🚀 开始运行编译系统完整测试套件\n');
+    logger.info('='.repeat(60));
 
     const startTime = Date.now();
     const results = {};
@@ -146,17 +148,17 @@ function runAllTests() {
 
     try {
         for (const testFile of testFiles) {
-            console.log(`\n${testFile.emoji} 运行${testFile.name}测试...`);
+            logger.info(`\n${testFile.emoji} 运行${testFile.name}测试...`);
             const testPath = path.resolve(__dirname, testFile.file);
 
             if (fs.existsSync(testPath)) {
                 results[testFile.name] = runTestFile(testPath);
-                console.log(`   ✅ ${results[testFile.name].passedTests}/${results[testFile.name].totalTests} 测试通过`);
+                logger.info(`   ✅ ${results[testFile.name].passedTests}/${results[testFile.name].totalTests} 测试通过`);
                 if (results[testFile.name].failedTests > 0) {
-                    console.log(`   ❌ ${results[testFile.name].failedTests} 测试失败`);
+                    logger.info(`   ❌ ${results[testFile.name].failedTests} 测试失败`);
                 }
             } else {
-                console.log(`   ⚠️  测试文件不存在: ${testFile.file}`);
+                logger.info(`   ⚠️  测试文件不存在: ${testFile.file}`);
                 results[testFile.name] = { totalTests: 0, passedTests: 0, failedTests: 1, results: [] };
             }
         }
@@ -179,9 +181,9 @@ function runAllTests() {
  * 生成测试报告
  */
 function generateTestReport(results, totalTime) {
-    console.log('\n' + '='.repeat(60));
-    console.log('📊 编译系统测试综合报告');
-    console.log('='.repeat(60));
+    logger.info('\n' + '='.repeat(60));
+    logger.info('📊 编译系统测试综合报告');
+    logger.info('='.repeat(60));
 
     // 计算总体统计
     let totalTests = 0;
@@ -196,8 +198,8 @@ function generateTestReport(results, totalTime) {
         codegen: '目标代码生成器'
     };
 
-    console.log('\n📋 各模块测试结果:');
-    console.log('-'.repeat(60));
+    logger.info('\n📋 各模块测试结果:');
+    logger.info('-'.repeat(60));
 
     Object.keys(results).forEach(module => {
         const result = results[module];
@@ -208,80 +210,82 @@ function generateTestReport(results, totalTime) {
         const status = result.passedTests === result.totalTests ? '✅' : '⚠️';
         const passRate = result.totalTests > 0 ? (result.passedTests / result.totalTests * 100).toFixed(1) : '0.0';
 
-        console.log(`${status} ${moduleNames[module]}: ${result.passedTests}/${result.totalTests} (${passRate}%)`);
+        logger.info(`${status} ${moduleNames[module]}: ${result.passedTests}/${result.totalTests} (${passRate}%)`);
     });
 
-    console.log('-'.repeat(60));
+    logger.info('-'.repeat(60));
 
     // 总体统计
     const overallPassRate = (totalPassed / totalTests * 100).toFixed(1);
     const overallStatus = totalPassed === totalTests ? '🎉' : '⚠️';
 
-    console.log('\n📈 总体统计:');
-    console.log(`${overallStatus} 总测试数: ${totalTests}`);
-    console.log(`✅ 通过测试: ${totalPassed}`);
-    console.log(`❌ 失败测试: ${totalFailed}`);
-    console.log(`📊 总通过率: ${overallPassRate}%`);
-    console.log(`⏱️  总耗时: ${totalTime}ms`);
+    logger.info('\n📈 总体统计:');
+    logger.info(`${overallStatus} 总测试数: ${totalTests}`);
+    logger.info(`✅ 通过测试: ${totalPassed}`);
+    logger.info(`❌ 失败测试: ${totalFailed}`);
+    logger.info(`📊 总通过率: ${overallPassRate}%`);
+    logger.info(`⏱️  总耗时: ${totalTime}ms`);
 
     // 性能分析
-    console.log('\n⚡ 性能分析:');
+    logger.info('\n⚡ 性能分析:');
     const avgTimePerTest = (totalTime / totalTests).toFixed(2);
-    console.log(`平均每个测试耗时: ${avgTimePerTest}ms`);
+    logger.info(`平均每个测试耗时: ${avgTimePerTest}ms`);
 
     if (totalTime < 5000) {
-        console.log('🚀 测试执行速度: 优秀');
+        logger.info('🚀 测试执行速度: 优秀');
     } else if (totalTime < 10000) {
-        console.log('👍 测试执行速度: 良好');
+        logger.info('👍 测试执行速度: 良好');
     } else {
-        console.log('🐌 测试执行速度: 需要优化');
+        logger.info('🐌 测试执行速度: 需要优化');
     }
 
     // 质量评估
-    console.log('\n🏆 质量评估:');
+    logger.info('\n🏆 质量评估:');
     if (overallPassRate >= 95) {
-        console.log('🌟 代码质量: 优秀 (≥95%)');
+        logger.info('🌟 代码质量: 优秀 (≥95%)');
     } else if (overallPassRate >= 85) {
-        console.log('👍 代码质量: 良好 (≥85%)');
+        logger.info('👍 代码质量: 良好 (≥85%)');
     } else if (overallPassRate >= 70) {
-        console.log('⚠️  代码质量: 一般 (≥70%)');
+        logger.info('⚠️  代码质量: 一般 (≥70%)');
     } else {
-        console.log('❌ 代码质量: 需要改进 (<70%)');
+        logger.info('❌ 代码质量: 需要改进 (<70%)');
     }
 
     // 覆盖率分析
-    console.log('\n📊 测试覆盖率分析:');
+    logger.info('\n📊 测试覆盖率分析:');
     const coverageAreas = [
-        { name: '词法分析', coverage: results.lexer.passRate },
-        { name: '语法分析', coverage: results.parser.passRate },
-        { name: '语义分析', coverage: results.semantic.passRate },
-        { name: '代码优化', coverage: results.optimizer.passRate },
-        { name: '代码生成', coverage: results.codegen.passRate }
+        { name: '词法分析', coverage: results.lexer ? (results.lexer.passedTests / results.lexer.totalTests * 100) : 0 },
+        { name: '语法分析', coverage: results.parser ? (results.parser.passedTests / results.parser.totalTests * 100) : 0 },
+        { name: '语义分析', coverage: results.semantic ? (results.semantic.passedTests / results.semantic.totalTests * 100) : 0 },
+        { name: '代码优化', coverage: results.optimizer ? (results.optimizer.passedTests / results.optimizer.totalTests * 100) : 0 },
+        { name: '代码生成', coverage: results.codegen ? (results.codegen.passedTests / results.codegen.totalTests * 100) : 0 }
     ];
 
     coverageAreas.forEach(area => {
         const bar = generateProgressBar(area.coverage, 20);
-        console.log(`${area.name}: ${bar} ${area.coverage.toFixed(1)}%`);
+        logger.info(`${area.name}: ${bar} ${area.coverage.toFixed(1)}%`);
     });
 
     // 建议和改进
-    console.log('\n💡 改进建议:');
-    const failedModules = Object.keys(results).filter(module =>
-        results[module].passRate < 100
-    );
+    logger.info('\n💡 改进建议:');
+    const failedModules = Object.keys(results).filter(module => {
+        const result = results[module];
+        return result.totalTests > 0 && result.passedTests < result.totalTests;
+    });
 
     if (failedModules.length === 0) {
-        console.log('🎉 所有模块测试全部通过，代码质量优秀！');
+        logger.info('🎉 所有模块测试全部通过，代码质量优秀！');
     } else {
         failedModules.forEach(module => {
             const moduleName = moduleNames[module];
-            const passRate = results[module].passRate.toFixed(1);
-            console.log(`- ${moduleName}: 通过率${passRate}%，建议检查失败的测试用例`);
+            const result = results[module];
+            const passRate = result.totalTests > 0 ? (result.passedTests / result.totalTests * 100) : 0;
+            logger.info(`- ${moduleName}: 通过率${passRate.toFixed(1)}%，建议检查失败的测试用例`);
         });
     }
 
     // 测试完整性检查
-    console.log('\n🔍 测试完整性检查:');
+    logger.info('\n🔍 测试完整性检查:');
     const expectedMinTests = {
         lexer: 15,
         parser: 15,
@@ -291,21 +295,21 @@ function generateTestReport(results, totalTime) {
     };
 
     Object.keys(expectedMinTests).forEach(module => {
-        const actual = results[module].total;
+        const actual = results[module] ? results[module].totalTests : 0;
         const expected = expectedMinTests[module];
         const status = actual >= expected ? '✅' : '⚠️';
-        console.log(`${status} ${moduleNames[module]}: ${actual}/${expected} 个测试用例`);
+        logger.info(`${status} ${moduleNames[module]}: ${actual}/${expected} 个测试用例`);
     });
 
-    console.log('\n' + '='.repeat(60));
+    logger.info('\n' + '='.repeat(60));
 
     if (totalPassed === totalTests) {
-        console.log('🎊 恭喜！编译系统所有测试通过，可以提交课程设计了！');
+        logger.info('🎊 恭喜！编译系统所有测试通过，可以提交课程设计了！');
     } else {
-        console.log('📝 请根据失败的测试用例修复问题后重新运行测试。');
+        logger.info('📝 请根据失败的测试用例修复问题后重新运行测试。');
     }
 
-    console.log('='.repeat(60));
+    logger.info('='.repeat(60));
 }
 
 /**
@@ -321,7 +325,7 @@ function generateProgressBar(percentage, length = 20) {
  * 运行特定模块测试
  */
 function runModuleTest(moduleName) {
-    console.log(`🔧 运行 ${moduleName} 模块测试...\n`);
+    logger.info(`🔧 运行 ${moduleName} 模块测试...\n`);
 
     const testFunctions = {
         lexer: runLexerTests,
@@ -334,13 +338,13 @@ function runModuleTest(moduleName) {
     const testFn = testFunctions[moduleName];
     if (!testFn) {
         console.error(`❌ 未知的模块名: ${moduleName}`);
-        console.log('可用的模块: lexer, parser, semantic, optimizer, codegen');
+        logger.info('可用的模块: lexer, parser, semantic, optimizer, codegen');
         return null;
     }
 
     try {
         const result = testFn();
-        console.log(`\n✅ ${moduleName} 模块测试完成`);
+        logger.info(`\n✅ ${moduleName} 模块测试完成`);
         return result;
     } catch (error) {
         console.error(`❌ ${moduleName} 模块测试失败:`, error.message);
@@ -388,8 +392,9 @@ function generateTestReportFile(results, outputPath = './test-report.md') {
 
     Object.keys(results).forEach(module => {
         const result = results[module];
-        const status = result.passed === result.total ? '✅ 通过' : '⚠️ 部分失败';
-        report += `| ${moduleNames[module]} | ${result.passed}/${result.total} | ${result.passRate.toFixed(1)}% | ${status} |\n`;
+        const passRate = result.totalTests > 0 ? (result.passedTests / result.totalTests * 100) : 0;
+        const status = result.passedTests === result.totalTests ? '✅ 通过' : '⚠️ 部分失败';
+        report += `| ${moduleNames[module]} | ${result.passedTests}/${result.totalTests} | ${passRate.toFixed(1)}% | ${status} |\n`;
     });
 
     report += '\n## 测试覆盖范围\n\n';
@@ -444,7 +449,7 @@ function generateTestReportFile(results, outputPath = './test-report.md') {
 
     try {
         fs.writeFileSync(outputPath, report, 'utf8');
-        console.log(`📄 测试报告已生成: ${outputPath}`);
+        logger.info(`📄 测试报告已生成: ${outputPath}`);
     } catch (error) {
         console.error('❌ 生成测试报告文件失败:', error.message);
     }
@@ -464,21 +469,21 @@ if (require.main === module) {
         // 运行特定模块测试
         runModuleTest(args[1]);
     } else if (args[0] === '--help') {
-        console.log('编译系统测试运行器使用说明:');
-        console.log('');
-        console.log('运行所有测试:');
-        console.log('  node test-runner.js');
-        console.log('');
-        console.log('运行特定模块测试:');
-        console.log('  node test-runner.js --module <模块名>');
-        console.log('');
-        console.log('可用模块: lexer, parser, semantic, optimizer, codegen');
-        console.log('');
-        console.log('示例:');
-        console.log('  node test-runner.js --module lexer');
+        logger.info('编译系统测试运行器使用说明:');
+        logger.info('');
+        logger.info('运行所有测试:');
+        logger.info('  node test-runner.js');
+        logger.info('');
+        logger.info('运行特定模块测试:');
+        logger.info('  node test-runner.js --module <模块名>');
+        logger.info('');
+        logger.info('可用模块: lexer, parser, semantic, optimizer, codegen');
+        logger.info('');
+        logger.info('示例:');
+        logger.info('  node test-runner.js --module lexer');
     } else {
         console.error('❌ 无效的命令行参数');
-        console.log('使用 --help 查看使用说明');
+        logger.info('使用 --help 查看使用说明');
     }
 }
 

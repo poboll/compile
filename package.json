@@ -1,0 +1,32 @@
+{
+  "name": "c-compiler",
+  "version": "1.0.0",
+  "description": "A C language compiler system implemented in both JavaScript and C",
+  "main": "index.js",
+  "scripts": {
+    "test:js": "jest",
+    "test:c": "make test",
+    "test": "npm run test:js && npm run test:c",
+    "build": "make",
+    "clean": "make clean"
+  },
+  "keywords": [
+    "compiler",
+    "lexer",
+    "parser",
+    "semantic-analyzer",
+    "optimizer",
+    "code-generator"
+  ],
+  "author": "poboll",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testMatch": [
+      "**/src/tests/**/*.test.js"
+    ],
+    "verbose": true
+  }
+}

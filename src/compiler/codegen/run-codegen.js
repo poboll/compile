@@ -3,7 +3,7 @@
  * 代码生成器独立测试工具 - run-codegen.js
  * @description 提供代码生成器的完整测试套件和交互式测试功能
  * @module compiler/codegen/run-codegen
- * @author poboll
+ * @author 编译系统课程设计
  * @date 2024
  * @version 1.0
  * 
@@ -31,28 +31,28 @@ const { TargetMachine } = require('./target-machine');
  */
 function formatGeneratedCode(code, language = 'javascript') {
     if (!code) return '(空代码)';
-
+    
     // 简单的代码格式化
     const lines = code.split('\n');
     let indentLevel = 0;
     const formattedLines = [];
-
+    
     lines.forEach(line => {
         const trimmed = line.trim();
         if (!trimmed) return;
-
+        
         // 减少缩进
         if (trimmed.includes('}') || trimmed.includes(']') || trimmed.includes(')'))
             indentLevel = Math.max(0, indentLevel - 1);
-
+        
         // 添加缩进
         formattedLines.push('  '.repeat(indentLevel) + trimmed);
-
+        
         // 增加缩进
         if (trimmed.includes('{') || trimmed.includes('[') || trimmed.includes('('))
             indentLevel++;
     });
-
+    
     return formattedLines.join('\n');
 }
 
@@ -82,20 +82,20 @@ function formatCodegenStats(stats) {
  */
 function analyzeGeneratedCode(code) {
     if (!code) return { lines: 0, size: 0, complexity: 0 };
-
+    
     const lines = code.split('\n').filter(line => line.trim().length > 0);
     const size = code.length;
-
+    
     // 简单的复杂度计算（基于控制流关键字）
     const complexityKeywords = ['if', 'else', 'while', 'for', 'switch', 'case', 'try', 'catch'];
     let complexity = 1; // 基础复杂度
-
+    
     complexityKeywords.forEach(keyword => {
         const regex = new RegExp(`\\b${keyword}\\b`, 'g');
         const matches = code.match(regex);
         if (matches) complexity += matches.length;
     });
-
+    
     return {
         lines: lines.length,
         size,
@@ -113,34 +113,34 @@ function analyzeGeneratedCode(code) {
  */
 function performCodeGeneration(code, testName = '未命名测试', targetPlatform = 'javascript') {
     console.log(`\n⚙️  开始代码生成: ${testName}`);
-    console.log('='.repeat(50));
+    console.log('=' .repeat(50));
     console.log('源代码:');
     console.log(code);
-    console.log('='.repeat(50));
-
+    console.log('=' .repeat(50));
+    
     const startTime = Date.now();
-
+    
     try {
         // 词法分析
         const lexer = new Lexer(code);
         const tokens = lexer.tokenize();
-
+        
         if (lexer.errors.length > 0) {
             console.log('\n❌ 词法分析错误:');
             lexer.errors.forEach(error => console.log(`  ${error}`));
             return { success: false, stage: 'lexer', errors: lexer.errors };
         }
-
+        
         // 语法分析
         const parser = new Parser(tokens);
         const ast = parser.parse();
-
+        
         if (parser.errors.length > 0) {
             console.log('\n❌ 语法分析错误:');
             parser.errors.forEach(error => console.log(`  ${error}`));
             return { success: false, stage: 'parser', errors: parser.errors };
         }
-
+        
         // 代码生成统计
         const stats = {
             targetPlatform,
@@ -153,10 +153,10 @@ function performCodeGeneration(code, testName = '未命名测试', targetPlatfor
             codeSize: 0,
             duration: 0
         };
-
+        
         console.log('\n📊 输入AST结构:');
         console.log(JSON.stringify(ast, null, 2).substring(0, 500) + '...');
-
+        
         // 代码生成
         const codeGenerator = new CodeGenerator(ast, {
             onEnter: (node) => {
@@ -181,45 +181,45 @@ function performCodeGeneration(code, testName = '未命名测试', targetPlatfor
                 // 可以在这里添加退出时的统计
             }
         });
-
+        
         const generatedCode = codeGenerator.generate();
-
+        
         const endTime = Date.now();
         stats.duration = endTime - startTime;
-
+        
         // 分析生成的代码
         const codeAnalysis = analyzeGeneratedCode(generatedCode);
         stats.generatedLines = codeAnalysis.lines;
         stats.codeSize = codeAnalysis.size;
         stats.instructionCount = codeAnalysis.lines; // 简化统计
-
+        
         // 显示生成的代码
         console.log('\n📄 生成的代码:');
         console.log('─'.repeat(40));
         console.log(formatGeneratedCode(generatedCode, targetPlatform));
         console.log('─'.repeat(40));
-
+        
         // 显示结果
         console.log('\n✅ 代码生成完成');
-
+        
         // 显示统计信息
         console.log(formatCodegenStats(stats));
-
+        
         // 代码质量分析
         console.log('\n🔍 代码质量分析:');
         console.log(`  代码行数: ${codeAnalysis.lines}`);
         console.log(`  代码大小: ${codeAnalysis.size} 字符`);
         console.log(`  平均行长: ${codeAnalysis.avgLineLength.toFixed(1)} 字符/行`);
         console.log(`  圈复杂度: ${codeAnalysis.complexity}`);
-
+        
         // 质量评估
         let qualityRating = '优秀';
         if (codeAnalysis.complexity > 10) qualityRating = '复杂';
         else if (codeAnalysis.complexity > 5) qualityRating = '中等';
         else if (codeAnalysis.avgLineLength > 100) qualityRating = '冗长';
-
+        
         console.log(`  质量评级: ${qualityRating}`);
-
+        
         return {
             success: true,
             ast,
@@ -228,7 +228,7 @@ function performCodeGeneration(code, testName = '未命名测试', targetPlatfor
             codeAnalysis,
             qualityRating
         };
-
+        
     } catch (error) {
         console.error('\n💥 代码生成过程中发生错误:', error.message);
         return { success: false, stage: 'codegen', error: error.message };
@@ -367,25 +367,25 @@ console.log("Total area:", areas);`
 function runAllTests(targetPlatform = 'javascript') {
     console.log('🚀 开始运行代码生成测试套件');
     console.log(`🎯 目标平台: ${targetPlatform}`);
-    console.log('='.repeat(60));
-
+    console.log('=' .repeat(60));
+    
     const results = [];
     const startTime = Date.now();
-
+    
     testCases.forEach((testCase, index) => {
         console.log(`\n📋 测试 ${index + 1}/${testCases.length}: ${testCase.name}`);
         const result = performCodeGeneration(testCase.code, testCase.name, targetPlatform);
         results.push({ ...testCase, result });
     });
-
+    
     const endTime = Date.now();
     const totalTime = endTime - startTime;
-
+    
     // 汇总统计
-    console.log('\n' + '='.repeat(60));
+    console.log('\n' + '=' .repeat(60));
     console.log('📊 测试汇总统计');
-    console.log('='.repeat(60));
-
+    console.log('=' .repeat(60));
+    
     const summary = {
         total: results.length,
         passed: results.filter(r => r.result.success).length,
@@ -399,13 +399,13 @@ function runAllTests(targetPlatform = 'javascript') {
         averageComplexity: 0,
         totalTime
     };
-
+    
     // 计算平均复杂度
     const successfulTests = results.filter(r => r.result.success && r.result.codeAnalysis);
     if (successfulTests.length > 0) {
         summary.averageComplexity = successfulTests.reduce((sum, r) => sum + r.result.codeAnalysis.complexity, 0) / successfulTests.length;
     }
-
+    
     console.log(`总测试数: ${summary.total}`);
     console.log(`通过测试: ${summary.passed}`);
     console.log(`失败测试: ${summary.failed}`);
@@ -413,7 +413,7 @@ function runAllTests(targetPlatform = 'javascript') {
     console.log(`生成代码总大小: ${summary.totalSize} 字符`);
     console.log(`平均圈复杂度: ${summary.averageComplexity.toFixed(2)}`);
     console.log(`总耗时: ${summary.totalTime}ms`);
-
+    
     // 详细错误报告
     const failedTests = results.filter(r => !r.result.success);
     if (failedTests.length > 0) {
@@ -428,21 +428,21 @@ function runAllTests(targetPlatform = 'javascript') {
             }
         });
     }
-
+    
     // 质量分析
     const qualityDistribution = {};
     successfulTests.forEach(test => {
         const quality = test.result.qualityRating;
         qualityDistribution[quality] = (qualityDistribution[quality] || 0) + 1;
     });
-
+    
     if (Object.keys(qualityDistribution).length > 0) {
         console.log('\n🏆 代码质量分布:');
         Object.entries(qualityDistribution).forEach(([quality, count]) => {
             console.log(`  ${quality}: ${count} 个测试`);
         });
     }
-
+    
     console.log('\n✅ 代码生成测试套件运行完成');
     return summary;
 }
@@ -450,7 +450,7 @@ function runAllTests(targetPlatform = 'javascript') {
 // 主程序
 if (require.main === module) {
     const args = process.argv.slice(2);
-
+    
     if (args.length === 0) {
         // 运行所有测试
         runAllTests();

@@ -9,6 +9,7 @@
  */
 #include "ast.h"
 #include <stdio.h>
+#include <stdarg.h>
 
 // --- 前向声明 ---
 static void print_stmt(Stmt *stmt);

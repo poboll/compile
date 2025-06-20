@@ -3,7 +3,7 @@
  * 代码优化器独立测试工具 - run-optimizer.js
  * @description 提供代码优化器的完整测试套件和交互式测试功能
  * @module compiler/optimizer/run-optimizer
- * @author poboll
+ * @author 编译系统课程设计
  * @date 2025
  * @version 1.0
  * 

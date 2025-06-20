@@ -3,7 +3,7 @@
  * 语义分析器单个代码片段测试工具 - test-single-semantic.js
  * @description 快速测试单个代码片段的语义分析功能
  * @module compiler/semantic/test-single-semantic
- * @author poboll
+ * @author 编译系统课程设计
  * @date 2025
  * @version 1.0
  * 

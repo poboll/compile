@@ -3,7 +3,7 @@
  * 语义分析器独立测试工具 - run-semantic.js
  * @description 提供语义分析器的完整测试套件和交互式测试功能
  * @module compiler/semantic/run-semantic
- * @author poboll
+ * @author 编译系统课程设计
  * @date 2025
  * @version 1.0
  * 

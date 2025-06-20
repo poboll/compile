@@ -1,0 +1,144 @@
+# Makefile for C Compiler Stage Tests
+# 用于编译各个编译阶段的独立测试程序
+
+CC = gcc
+CFLAGS = -g -Wall -Isrc -std=c11
+SRC_DIR = src/compiler
+TEST_DIR = tests
+DOCS_DIR = docs
+
+# 源文件
+COMMON_SRCS = $(SRC_DIR)/common.c $(SRC_DIR)/token.c $(SRC_DIR)/ast.c
+LEXER_SRCS = $(COMMON_SRCS) $(SRC_DIR)/lexer.c
+PARSER_SRCS = $(LEXER_SRCS) $(SRC_DIR)/parser.c $(SRC_DIR)/ast_printer.c
+SEMANTIC_SRCS = $(PARSER_SRCS) $(SRC_DIR)/analyzer.c $(SRC_DIR)/symbol.c
+OPTIMIZER_SRCS = $(SEMANTIC_SRCS) $(SRC_DIR)/optimizer.c
+CODEGEN_SRCS = $(OPTIMIZER_SRCS) $(SRC_DIR)/codegen.c
+
+# 测试程序目标
+TEST_TARGETS = test_lexer_only test_parser_only test_semantic_only test_optimizer_only test_codegen_only test_full_pipeline
+
+# 默认目标
+all: $(TEST_TARGETS)
+	@echo "所有测试程序编译完成！"
+	@echo "可用的测试程序："
+	@echo "  ./test_lexer_only     - 词法分析器测试"
+	@echo "  ./test_parser_only    - 语法分析器测试"
+	@echo "  ./test_semantic_only  - 语义分析器测试"
+	@echo "  ./test_optimizer_only - 代码优化器测试"
+	@echo "  ./test_codegen_only   - 代码生成器测试"
+	@echo "  ./test_full_pipeline  - 完整编译流程测试"
+
+# 词法分析器测试
+test_lexer_only: test_lexer_only.c $(LEXER_SRCS)
+	$(CC) $(CFLAGS) -o $@ $< $(LEXER_SRCS)
+
+# 语法分析器测试
+test_parser_only: test_parser_only.c $(PARSER_SRCS)
+	$(CC) $(CFLAGS) -o $@ $< $(PARSER_SRCS)
+
+# 语义分析器测试
+test_semantic_only: test_semantic_only.c $(SEMANTIC_SRCS)
+	$(CC) $(CFLAGS) -o $@ $< $(SEMANTIC_SRCS)
+
+# 代码优化器测试
+test_optimizer_only: test_optimizer_only.c $(OPTIMIZER_SRCS)
+	$(CC) $(CFLAGS) -o $@ $< $(OPTIMIZER_SRCS)
+
+# 代码生成器测试
+test_codegen_only: test_codegen_only.c $(CODEGEN_SRCS)
+	$(CC) $(CFLAGS) -o $@ $< $(CODEGEN_SRCS)
+
+# 完整编译流程测试
+test_full_pipeline: test_full_pipeline.c $(CODEGEN_SRCS)
+	$(CC) $(CFLAGS) -o $@ $< $(CODEGEN_SRCS)
+
+# 创建测试源文件
+create_test_files:
+	@echo "正在创建测试源文件..."
+	@if [ ! -f test_lexer_only.c ]; then \
+		echo "创建 test_lexer_only.c"; \
+		cp $(DOCS_DIR)/test_lexer_only.c .; \
+	fi
+	@if [ ! -f test_parser_only.c ]; then \
+		echo "创建 test_parser_only.c"; \
+		cp $(DOCS_DIR)/test_parser_only.c .; \
+	fi
+	@if [ ! -f test_semantic_only.c ]; then \
+		echo "创建 test_semantic_only.c"; \
+		cp $(DOCS_DIR)/test_semantic_only.c .; \
+	fi
+	@if [ ! -f test_optimizer_only.c ]; then \
+		echo "创建 test_optimizer_only.c"; \
+		cp $(DOCS_DIR)/test_optimizer_only.c .; \
+	fi
+	@if [ ! -f test_codegen_only.c ]; then \
+		echo "创建 test_codegen_only.c"; \
+		cp $(DOCS_DIR)/test_codegen_only.c .; \
+	fi
+	@if [ ! -f test_full_pipeline.c ]; then \
+		echo "创建 test_full_pipeline.c"; \
+		cp $(DOCS_DIR)/test_full_pipeline.c .; \
+	fi
+
+# 运行所有测试
+run_tests: $(TEST_TARGETS)
+	@echo "=== 运行词法分析器测试 ==="
+	./test_lexer_only
+	@echo "\n=== 运行语法分析器测试 ==="
+	./test_parser_only
+	@echo "\n=== 运行语义分析器测试 ==="
+	./test_semantic_only
+	@echo "\n=== 运行代码优化器测试 ==="
+	./test_optimizer_only
+	@echo "\n=== 运行代码生成器测试 ==="
+	./test_codegen_only
+	@echo "\n=== 运行完整编译流程测试 ==="
+	./test_full_pipeline
+
+# 清理
+clean:
+	rm -f $(TEST_TARGETS)
+	rm -f *.o
+	rm -f output_test.c
+	rm -f test_*.c
+
+# 清理所有生成文件
+clean_all: clean
+	rm -f $(DOCS_DIR)/test_*.c
+
+# 调试版本
+debug: CFLAGS += -DDEBUG -O0
+debug: $(TEST_TARGETS)
+
+# 发布版本
+release: CFLAGS += -O2 -DNDEBUG
+release: $(TEST_TARGETS)
+
+# 内存检查
+valgrind_test: $(TEST_TARGETS)
+	@echo "使用Valgrind检查内存泄漏..."
+	valgrind --leak-check=full --show-leak-kinds=all ./test_lexer_only
+	valgrind --leak-check=full --show-leak-kinds=all ./test_parser_only
+	valgrind --leak-check=full --show-leak-kinds=all ./test_semantic_only
+
+# 帮助信息
+help:
+	@echo "可用的Make目标："
+	@echo "  all              - 编译所有测试程序"
+	@echo "  test_lexer_only  - 编译词法分析器测试"
+	@echo "  test_parser_only - 编译语法分析器测试"
+	@echo "  test_semantic_only - 编译语义分析器测试"
+	@echo "  test_optimizer_only - 编译代码优化器测试"
+	@echo "  test_codegen_only - 编译代码生成器测试"
+	@echo "  test_full_pipeline - 编译完整编译流程测试"
+	@echo "  create_test_files - 创建测试源文件"
+	@echo "  run_tests        - 运行所有测试"
+	@echo "  debug            - 编译调试版本"
+	@echo "  release          - 编译发布版本"
+	@echo "  valgrind_test    - 使用Valgrind进行内存检查"
+	@echo "  clean            - 清理编译文件"
+	@echo "  clean_all        - 清理所有生成文件"
+	@echo "  help             - 显示此帮助信息"
+
+.PHONY: all create_test_files run_tests clean clean_all debug release valgrind_test help
